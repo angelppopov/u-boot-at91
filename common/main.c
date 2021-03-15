@@ -13,6 +13,9 @@
 #include <console.h>
 #include <env.h>
 #include <version.h>
+#include <asm/arch/at91_sfr.h>
+#include <asm/arch/at91_pit.h>
+#include <asm/arch/hardware.h>
 
 /*
  * Board-specific Platform code can reimplement show_boot_progress () if needed
@@ -37,10 +40,47 @@ static void run_preboot_environment_command(void)
 	}
 }
 
+static void set_cpu_serial(void)
+{
+	int ret;
+	struct atmel_sfr *sfr = (struct atmel_sfr *)ATMEL_BASE_SFR;
+	
+	ret = env_get_hex("sn0", 0);
+	if(ret != sfr->sn0)
+		goto save;
+
+	printf("Serial Number 0 Register: 0x%08x\n", ret);
+
+	ret = env_get_hex("sn1", 0);
+	if(ret != sfr->sn1)
+		goto save;
+
+	printf("Serial Number 1 Register: 0x%08x\n", ret);
+
+	return;
+
+save:
+	ret = env_set_hex("sn0", sfr->sn0);
+	if(ret){
+		printf("Cannot set varialbe sn0: 0x%08x\n", sfr->sn0);
+		return;
+	}
+
+	ret = env_set_hex("sn1", sfr->sn1);
+	if(ret){
+		printf("Cannot set varialbe sn1: 0x%08x\n", sfr->sn1);
+		return;
+	}
+	printf("Saving CPU serial number.\n");
+	env_save();
+}
+
 /* We come here after U-Boot is initialised and ready to process commands */
 void main_loop(void)
 {
 	const char *s;
+	
+	set_cpu_serial();
 
 	bootstage_mark_name(BOOTSTAGE_ID_MAIN_LOOP, "main_loop");
 
